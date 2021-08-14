@@ -1,4 +1,4 @@
-from .types import EventType, ErrorType, ConsumerError
+from .types import EventType, ErrorType, BaseConsumerError
 
 
 class BaseConsumerMethodList:
@@ -8,16 +8,16 @@ class BaseConsumerMethodList:
     """
     def __init__(self, consumer):
         self.consumer = consumer
-        self.allowed_methods = list(
+        self.allowed_methods = {
             attr_name
             for attr_name in dir(self)
             if (callable(getattr(self, attr_name))
                 and not attr_name.startswith('__'))
-        )
+        }
 
-    async def __call_method__(self, method_name, *args, **kwargs):
+    async def __call_method__(self, method_name, args=[], kwargs=dict()):
         if method_name not in self.allowed_methods:
-            raise ConsumerError(
+            raise BaseConsumerError(
                 f'You do not have permissions to execute this method ({method_name})',
                 ErrorType.ACCESS_ERROR
             )
@@ -25,10 +25,10 @@ class BaseConsumerMethodList:
 
 
 class BaseConsumerEventMethodList(BaseConsumerMethodList):
-    async def common_return(self, data=None, initiator_id=None, event_response_key=None):
+    async def user_return(self, data=None, *args, **kwargs):
         """Just send given data to the user"""
         try:
-            await self.consumer.send(data)
+            await self.consumer.send_json(data)
         except KeyError as e:
-            await self.consumer.send_error("no data for the event_common_return")
+            await self.consumer.send_error("no data for the user_return")
 

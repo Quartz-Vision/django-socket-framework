@@ -1,20 +1,70 @@
-from dataclasses import dataclass
 from enum import Enum
 
 
-class EventType:
+class BaseEventType(Enum):
+    pass
+
+
+class EventType(BaseEventType):
     ERROR = "error"
 
 
-class ErrorType:
+class Response(dict):
+    def __init__(
+            self,
+            __response_type: BaseEventType,
+            __response_client_data,
+            *args,
+            **kwargs
+    ):
+        super(Response, self).__init__({
+            'type': __response_type,
+            'data': {
+                **kwargs,
+                '__response_client_data': __response_client_data
+            }
+        })
+
+
+class BaseErrorType(Enum):
+    pass
+
+
+class ErrorType(BaseErrorType):
     SYSTEM_ERROR = "system_error"
     ACCESS_ERROR = "access_error"
     AUTHORIZATION_ERROR = "authorization_error"
-    FIELD_ERROR = "field_error"
+    TYPE_ERROR = "field_error"
 
 
-class ConsumerError(RuntimeError):
-    def __init__(self, msg, error_type=ErrorType.SYSTEM_ERROR, *args, **kwargs):
-        super(ConsumerError, self).__init__(msg, *args)
+class BaseConsumerError(RuntimeError):
+    def __init__(
+            self,
+            msg: str,
+            error_type: ErrorType = ErrorType.SYSTEM_ERROR,
+            *args,
+            **kwargs
+    ):
+        super(BaseConsumerError, self).__init__(msg, *args)
         self.error_type = error_type
         self.addition_parameters = kwargs
+
+
+class ConsumerTypeError(BaseConsumerError):
+    def __init__(self, *args, **kwargs):
+        super(ConsumerTypeError, self).__init__(*args, **kwargs, error_type=ErrorType.TYPE_ERROR)
+
+
+class ConsumerSystemError(BaseConsumerError):
+    def __init__(self, *args, **kwargs):
+        super(ConsumerSystemError, self).__init__(*args, **kwargs, error_type=ErrorType.SYSTEM_ERROR)
+
+
+class ConsumerAccessError(BaseConsumerError):
+    def __init__(self, *args, **kwargs):
+        super(ConsumerAccessError, self).__init__(*args, **kwargs, error_type=ErrorType.ACCESS_ERROR)
+
+
+class ConsumerAuthorizationError(BaseConsumerError):
+    def __init__(self, *args, **kwargs):
+        super(ConsumerAuthorizationError, self).__init__(*args, **kwargs, error_type=ErrorType.AUTHORIZATION_ERROR)

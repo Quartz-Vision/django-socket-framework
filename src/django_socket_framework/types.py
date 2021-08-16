@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class BaseEventType(Enum):
+class BaseEventType(str, Enum):
     pass
 
 
@@ -13,7 +13,7 @@ class Response(dict):
     def __init__(
             self,
             __response_type: BaseEventType,
-            __response_client_data,
+            __response_client_data=None,
             *args,
             **kwargs
     ):
@@ -26,7 +26,7 @@ class Response(dict):
         })
 
 
-class BaseErrorType(Enum):
+class BaseErrorType(str, Enum):
     pass
 
 

@@ -15,7 +15,7 @@ class BaseConsumerMethodList:
                 and not attr_name.startswith('__'))
         }
 
-    async def __call_method__(self, method_name, kwargs={}, args=[]):
+    async def __call_method__(self, method_name, kwargs: dict = {}, args: list = []):
         if method_name not in self.allowed_methods:
             raise BaseConsumerError(
                 f'You do not have permissions to execute this method ({method_name})',

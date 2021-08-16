@@ -45,19 +45,21 @@ class BaseConsumer(AsyncConsumer):
         """
         Detaches all the groups from the layer
         """
-        await asyncio.wait(
+        fs = [
             self.detach_group(group)
             for group in set(self.active_groups)
-        )
+        ]
+        if fs: await asyncio.wait(fs)
 
     async def init_base_groups(self):
         """
         Activates all groups from base_groups
         """
-        await asyncio.wait(
+        fs = [
             self.attach_group(group)
             for group in self.base_groups
-        )
+        ]
+        if fs: await asyncio.wait(fs)
 
     async def websocket_connect(self, message):
         """
@@ -154,14 +156,16 @@ class JsonConsumer(BaseConsumer):
             **additions
         ))
 
-    async def handle_error(self, error):
+    async def handle_error(self, error, *args, **kwargs):
         """This method decides what to do with errors"""
-        await self.send_error(
-            error=(
-                error if isinstance(error, BaseConsumerError) or getattr(settings, "DEBUG", False)
-                else "Internal Server Error"
+        if isinstance(error, BaseConsumerError):
+            error.addition_parameters.update(kwargs)
+        else:
+            error = ConsumerSystemError(
+                str(error) if getattr(settings, "DEBUG", False) else "Internal Server Error",
+                **kwargs
             )
-        )
+        await self.send_error(error=error)
 
     async def receive_text(self, text=None):
         """Tries to login the user and then calls methods"""
@@ -187,17 +191,6 @@ class JsonMethodConsumer(JsonConsumer):
         self.api_method_list = self.api_method_list_class(self)
         self.event_method_list = self.event_method_list_class(self)
 
-    async def handle_error(self, error, __response_client_data=None):
-        """This method decides what to do with errors"""
-        if isinstance(error, BaseConsumerError):
-            error.addition_parameters['__response_client_data'] = __response_client_data
-        else:
-            error = ConsumerSystemError(
-                str(error) if getattr(settings, "DEBUG", False) else "Internal Server Error",
-                __response_client_data=__response_client_data
-            )
-        await self.send_error(error=error)
-
     async def send_group_event(self, group_name, event_name, kwargs={}, args=[]):
         """Sends event call to the group"""
         return await self.channel_layer.group_send(
@@ -213,7 +206,7 @@ class JsonMethodConsumer(JsonConsumer):
         try:
             if type(data) != dict:
                 data = {}
-                raise ConsumerTypeError("The data has to be a JSON-object.")
+                raise ConsumerTypeError("The data have to be a JSON-object.")
             await self.call_method(data)
         except Exception as e:
             await self.handle_error(
@@ -226,7 +219,7 @@ class JsonMethodConsumer(JsonConsumer):
         Calls an API method
         """
         res = await self.api_method_list.__call_method__(
-            data.get('method'), data.get("args", []), data.get("kwargs", {})
+            data.get('method'), data.get("kwargs", {}), data.get("args", [])
         )
         if res is not None:
             await self.send_json(res)
@@ -242,7 +235,7 @@ class JsonMethodConsumer(JsonConsumer):
 
     async def call_event(self, event):
         await self.event_method_list.__call_method__(
-            event.get('event_name'), event.get('args', []), event.get('kwargs', {})
+            event.get('event_name'), event.get('kwargs', {}), event.get('args', [])
         )
 
 
@@ -291,7 +284,7 @@ class TokenAuthConsumer(JsonMethodConsumer):
 
         self.user_group_name = str(self.user.id)
         self.authenticated = True
-        
+
         await self.attach_group(self.user_group_name)
 
     async def call_method(self, data):

@@ -41,7 +41,7 @@ class BaseConsumerError(RuntimeError):
     def __init__(
             self,
             msg: str,
-            error_type: ErrorType = ErrorType.SYSTEM_ERROR,
+            error_type: BaseErrorType = ErrorType.SYSTEM_ERROR,
             *args,
             **kwargs
     ):

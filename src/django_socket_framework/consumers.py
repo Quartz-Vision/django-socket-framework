@@ -145,8 +145,8 @@ class JsonConsumer(BaseConsumer):
         """Sends standard error messages of ERROR type"""
         additions = {}
         if error:
-            text = str(error),
-            error_type = getattr(error, "error_type", ErrorType.SYSTEM_ERROR),
+            text = str(error)
+            error_type = getattr(error, "error_type", ErrorType.SYSTEM_ERROR)
             additions = getattr(error, 'addition_parameters', {})
 
         return await self.send_json(Response(

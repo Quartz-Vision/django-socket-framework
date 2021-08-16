@@ -198,7 +198,7 @@ class JsonMethodConsumer(JsonConsumer):
             )
         await self.send_error(error=error)
 
-    async def send_group_event(self, group_name, event_name, args=[], kwargs={}):
+    async def send_group_event(self, group_name, event_name, kwargs={}, args=[]):
         """Sends event call to the group"""
         return await self.channel_layer.group_send(
             group_name, {
@@ -257,20 +257,20 @@ class TokenAuthConsumer(JsonMethodConsumer):
     user_group_prefix: str = '__user'
     user_group_name: str = None
 
-    async def send_group_event(self, group_name, event_name, args=[], kwargs={}):
+    async def send_group_event(self, group_name, event_name, kwargs={}, args=[]):
         """Adds initiator id to the kwargs"""
         kwargs['__initiator_id'] = self.user.id if self.authenticated else None
         return await super(TokenAuthConsumer, self).send_group_event(
-            group_name, event_name, args, kwargs
+            group_name, event_name, kwargs, args
         )
 
-    async def send_to_user(self, user_id, event_name, args=[], kwargs={}):
+    async def send_to_user(self, user_id, event_name, kwargs={}, args=[]):
         """Shorthand for send_group_event with user group"""
-        return await self.send_group_event(self.user_group_prefix + str(user_id), event_name, args, kwargs)
+        return await self.send_group_event(self.user_group_prefix + str(user_id), event_name, kwargs, args)
 
-    async def user_return(self, args=[], kwargs={}):
+    async def user_return(self, kwargs={}, args=[]):
         """Sends the data to all points where the authenticated user is logged from"""
-        await self.send_group_event(self.user_group_name, 'user_return', args, kwargs)
+        await self.send_group_event(self.user_group_name, 'user_return', kwargs, args)
 
     async def get_user_by_token(self, token):
         """Performs token checking and returns it's owner"""

@@ -226,7 +226,7 @@ class JsonMethodConsumer(JsonConsumer):
         Calls an API method
         """
         for middleware in self.api_middlewares:
-            data = middleware(self, data)
+            data = await middleware(self, data)
 
         res = await self.api_method_list.__call_method__(
             data.get('method'), data.get("kwargs", {}), data.get("args", [])

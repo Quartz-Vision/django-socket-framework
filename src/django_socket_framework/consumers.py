@@ -2,13 +2,11 @@ import json
 import asyncio
 from collections.abc import Sequence
 
-from asgiref.sync import sync_to_async
 from channels.consumer import AsyncConsumer
 from channels.exceptions import DenyConnection, StopConsumer
 from django.contrib.auth import get_user_model
-from rest_framework_simplejwt.tokens import AccessToken
 
-from .method_list import BaseConsumerMethodList, BaseConsumerEventMethodList
+from .method_lists import BaseConsumerMethodList, UserReturnMethodListMixin
 from .types import EventType, ErrorType, BaseConsumerError, Response, ConsumerSystemError, ConsumerTypeError
 
 from django.conf import settings
@@ -184,11 +182,20 @@ class JsonMethodConsumer(JsonConsumer):
     api_method_list_class: BaseConsumerMethodList = BaseConsumerMethodList
     api_method_list: BaseConsumerMethodList = None
 
-    event_method_list_class: BaseConsumerEventMethodList = BaseConsumerEventMethodList
-    event_method_list: BaseConsumerEventMethodList = None
+    event_method_list_class: BaseConsumerMethodList = BaseConsumerMethodList
+    event_method_list: BaseConsumerMethodList = None
+
+    api_middlewares = tuple()
+    event_middlewares = tuple()
 
     def __init__(self, *args, **kwargs):
+        self.init_api_method_list()
+        self.init_event_method_list()
+
+    def init_api_method_list(self):
         self.api_method_list = self.api_method_list_class(self)
+
+    def init_event_method_list(self):
         self.event_method_list = self.event_method_list_class(self)
 
     async def send_group_event(self, group_name, event_name, kwargs={}, args=[]):
@@ -218,6 +225,9 @@ class JsonMethodConsumer(JsonConsumer):
         """
         Calls an API method
         """
+        for middleware in self.api_middlewares:
+            data = middleware(self, data)
+
         res = await self.api_method_list.__call_method__(
             data.get('method'), data.get("kwargs", {}), data.get("args", [])
         )
@@ -234,12 +244,15 @@ class JsonMethodConsumer(JsonConsumer):
             )
 
     async def call_event(self, event):
+        for middleware in self.event_middlewares:
+            event = await middleware(self, event)
+
         await self.event_method_list.__call_method__(
             event.get('event_name'), event.get('kwargs', {}), event.get('args', [])
         )
 
 
-class TokenAuthConsumer(JsonMethodConsumer):
+class AuthConsumer(JsonMethodConsumer):
     """
     Base consumer class that provides user authorization,
     separated API methods events interfaces
@@ -250,10 +263,15 @@ class TokenAuthConsumer(JsonMethodConsumer):
     user_group_prefix: str = '__user'
     user_group_name: str = None
 
+    def init_event_method_list(self):
+        class AuthClass(self.api_method_list_class, UserReturnMethodListMixin):
+            pass
+        self.api_method_list = AuthClass(self)
+
     async def send_group_event(self, group_name, event_name, kwargs={}, args=[]):
         """Adds initiator id to the kwargs"""
         kwargs['__initiator_id'] = self.user.id if self.authenticated else None
-        return await super(TokenAuthConsumer, self).send_group_event(
+        return await super(AuthConsumer, self).send_group_event(
             group_name, event_name, kwargs, args
         )
 
@@ -263,32 +281,4 @@ class TokenAuthConsumer(JsonMethodConsumer):
 
     async def user_return(self, kwargs={}, args=[]):
         """Sends the data to all points where the authenticated user is logged from"""
-        await self.send_group_event(self.user_group_name, 'user_return', kwargs, args)
-
-    async def get_user_by_token(self, token):
-        """Performs token checking and returns it's owner"""
-        try:
-            token = AccessToken(token)
-            return await sync_to_async(User.objects.get)(id=token['user_id'])
-        except Exception as e:
-            return None
-
-    async def authenticate(self, token):
-        """Performs user authentication"""
-        if not token:
-            raise BaseConsumerError("There is no access token.", ErrorType.FIELD_ERROR)
-
-        self.user = await self.get_user_by_token(token)
-        if not self.user:
-            raise BaseConsumerError("Authorization failed.", ErrorType.AUTHORIZATION_ERROR)
-
-        self.user_group_name = str(self.user.id)
-        self.authenticated = True
-
-        await self.attach_group(self.user_group_name)
-
-    async def call_method(self, data):
-        """Tries to login the user and then calls methods"""
-        if not self.authenticated:
-            await self.authenticate(data.get('access_token'))
-        await super(TokenAuthConsumer, self).call_method(data)
+        await self.send_group_event(self.user_group_name, 'user_return__', kwargs, args)

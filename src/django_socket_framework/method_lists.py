@@ -24,8 +24,8 @@ class BaseConsumerMethodList:
         return await getattr(self, method_name)(*args, **kwargs)
 
 
-class BaseConsumerEventMethodList(BaseConsumerMethodList):
-    async def user_return(self, data=None, *args, **kwargs):
+class UserReturnMethodListMixin(BaseConsumerMethodList):
+    async def user_return__(self, data=None, *args, **kwargs):
         """Just send given data to the user"""
         try:
             await self.consumer.send_json(data)

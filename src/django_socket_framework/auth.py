@@ -21,15 +21,10 @@ class BaseTokenAuthMiddleware(ConsumerMiddleware):
         token = data.get('access_token')
         if not token:
             raise ConsumerAuthorizationError("There is no access token.")
-
-        consumer.user = await consumer.get_user_by_token(token)
-        if not consumer.user:
+        user = await consumer.get_user_by_token(token)
+        await consumer.authenticate(user)
+        if not user:
             raise ConsumerAuthorizationError("Authorization failed.")
-
-        consumer.user_group_name = str(consumer.user.id)
-        consumer.authenticated = True
-
-        await consumer.attach_group(consumer.user_group_name)
 
         return data
 

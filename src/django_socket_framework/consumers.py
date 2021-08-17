@@ -282,3 +282,9 @@ class AuthConsumer(JsonMethodConsumer):
     async def user_return(self, kwargs={}, args=[]):
         """Sends the data to all points where the authenticated user is logged from"""
         await self.send_group_event(self.user_group_name, 'user_return__', kwargs, args)
+
+    async def authenticate(self, user):
+        self.user = user
+        self.user_group_name = self.user_group_prefix + str(user.id)
+        self.authenticated = True
+        await self.attach_group(self.user_group_name)

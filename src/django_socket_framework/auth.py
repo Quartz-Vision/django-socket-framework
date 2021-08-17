@@ -16,7 +16,7 @@ class BaseTokenAuthMiddleware(ConsumerMiddleware):
     async def handle(self, consumer, data, *args, **kwargs):
         """Performs user authentication"""
         if consumer.authenticated:
-            return
+            return data
 
         token = data.get('access_token')
         if not token:

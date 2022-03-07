@@ -144,7 +144,7 @@ class JsonConsumer(BaseConsumer):
         additions = {}
         if error:
             text = str(error)
-            error_type = getattr(error, "error_type", ErrorType.SYSTEM_ERROR)
+            error_type = getattr(error, 'error_type', ErrorType.SYSTEM_ERROR)
             additions = getattr(error, 'addition_parameters', {})
 
         return await self.send_json(Response(

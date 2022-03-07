@@ -10,12 +10,17 @@ class EventType(BaseEventType):
 
 
 class Response(dict):
+    """
+    Response dict class with dedicated constructor
+    __response_client_data - data, going from the client back 
+        to itself in raw format. For example, front-end ids
+    """
     def __init__(
-            self,
-            __response_type: BaseEventType,
-            __response_client_data=None,
-            *args,
-            **kwargs
+        self,
+        __response_type: BaseEventType,
+        __response_client_data=None,
+        *args,
+        **kwargs
     ):
         super(Response, self).__init__({
             'type': __response_type,
@@ -39,11 +44,11 @@ class ErrorType(BaseErrorType):
 
 class BaseConsumerError(RuntimeError):
     def __init__(
-            self,
-            msg: str,
-            error_type: BaseErrorType = ErrorType.SYSTEM_ERROR,
-            *args,
-            **kwargs
+        self,
+        msg: str,
+        error_type: BaseErrorType = ErrorType.SYSTEM_ERROR,
+        *args,
+        **kwargs
     ):
         super(BaseConsumerError, self).__init__(msg, *args)
         self.error_type = error_type

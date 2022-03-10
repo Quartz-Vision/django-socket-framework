@@ -266,7 +266,7 @@ class AuthConsumer(JsonMethodConsumer):
     def init_event_method_list(self):
         class AuthClass(self.api_method_list_class, UserReturnMethodListMixin):
             pass
-        self.api_method_list = AuthClass(self)
+        self.event_method_list = AuthClass(self)
 
     async def send_group_event(self, group_name, event_name, kwargs={}, args=[]):
         """Adds initiator id to the kwargs"""

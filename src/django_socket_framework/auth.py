@@ -22,9 +22,10 @@ class BaseTokenAuthMiddleware(ConsumerMiddleware):
         if not token:
             raise ConsumerAuthorizationError("There is no access token.")
         user = await self.get_user_by_token(token)
-        await consumer.authenticate(user)
+        
         if not user:
             raise ConsumerAuthorizationError("Authorization failed.")
+        await consumer.authenticate(user)
 
         return data
 

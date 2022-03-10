@@ -270,7 +270,7 @@ class AuthConsumer(JsonMethodConsumer):
 
     async def send_group_event(self, group_name, event_name, kwargs={}, args=[]):
         """Adds initiator id to the kwargs"""
-        kwargs['__initiator_id'] = self.user.id if self.authenticated else None
+        kwargs['__initiator_id'] = str(self.user.id) if self.authenticated else None
         return await super(AuthConsumer, self).send_group_event(
             group_name, event_name, kwargs, args
         )

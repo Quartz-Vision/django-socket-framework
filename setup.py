@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="django-socket-framework",
-    version="0.1.5",
+    version="0.1.6",
     author="Lia Va",
     description="Socket consumer environment with more systematic methods/events and auth",
     long_description=long_description,

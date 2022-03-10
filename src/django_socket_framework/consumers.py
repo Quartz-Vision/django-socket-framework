@@ -264,7 +264,7 @@ class AuthConsumer(JsonMethodConsumer):
     user_group_name: str = None
 
     def init_event_method_list(self):
-        class AuthClass(self.api_method_list_class, UserReturnMethodListMixin):
+        class AuthClass(self.event_method_list_class, UserReturnMethodListMixin):
             pass
         self.event_method_list = AuthClass(self)
 

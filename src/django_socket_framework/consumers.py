@@ -1,17 +1,22 @@
-import json
 import asyncio
+import json
 from collections.abc import Sequence
 
 from channels.consumer import AsyncConsumer
 from channels.exceptions import DenyConnection, StopConsumer
-from django.contrib.auth import get_user_model
-
-from .method_lists import BaseConsumerMethodList, UserReturnMethodListMixin
-from .types import EventType, ErrorType, BaseConsumerError, Response, ConsumerSystemError, ConsumerTypeError
-
 from django.conf import settings
 
-User = get_user_model()
+from django_socket_framework.method_lists import BaseConsumerMethodList
+from django_socket_framework.types import (
+    ClientEventType,
+    ErrorType,
+    BaseConsumerError,
+    ClientEvent,
+    ConsumerSystemError,
+    ConsumerTypeError
+)
+
+__all__ = ['BaseConsumer', 'JsonConsumer', 'JsonMethodConsumer']
 
 
 class BaseConsumer(AsyncConsumer):
@@ -23,21 +28,31 @@ class BaseConsumer(AsyncConsumer):
     base_groups: Sequence = []
     active_groups: set = set()
 
-    async def attach_group(self, group_name: str):
+    async def attach_group(self, group_name: str) -> bool:
         """
         Adds a new group to the layer
+        Returns:
+            True - group has been added
+            False - group are already presented in the list
         """
         if group_name not in self.active_groups:
             self.active_groups.add(group_name)
             await self.channel_layer.group_add(group_name, self.channel_name)
+            return True
+        return False
 
-    async def detach_group(self, group_name: str):
+    async def detach_group(self, group_name: str) -> bool:
         """
         Removes a group from the layer
+        Returns:
+            True - group has been removed
+            False - group are already not in the list
         """
         if group_name in self.active_groups:
             self.active_groups.remove(group_name)
             await self.channel_layer.group_discard(group_name, self.channel_name)
+            return True
+        return False
 
     async def detach_all_groups(self):
         """
@@ -47,7 +62,8 @@ class BaseConsumer(AsyncConsumer):
             self.detach_group(group)
             for group in set(self.active_groups)
         ]
-        if fs: await asyncio.wait(fs)
+        if fs:
+            await asyncio.wait(fs)
 
     async def init_base_groups(self):
         """
@@ -57,7 +73,8 @@ class BaseConsumer(AsyncConsumer):
             self.attach_group(group)
             for group in self.base_groups
         ]
-        if fs: await asyncio.wait(fs)
+        if fs:
+            await asyncio.wait(fs)
 
     async def websocket_connect(self, message):
         """
@@ -147,8 +164,8 @@ class JsonConsumer(BaseConsumer):
             error_type = getattr(error, 'error_type', ErrorType.SYSTEM_ERROR)
             additions = getattr(error, 'addition_parameters', {})
 
-        return await self.send_json(Response(
-            EventType.ERROR,
+        return await self.send_json(ClientEvent(
+            ClientEventType.ERROR,
             detail=text,
             type=error_type,
             **additions
@@ -218,7 +235,7 @@ class JsonMethodConsumer(JsonConsumer):
         except Exception as e:
             await self.handle_error(
                 error=e,
-                __response_client_data=(data or {}).get("kwargs", {}).get("__response_client_data")
+                __echo_client_data=(data or {}).get("kwargs", {}).get("__echo_client_data")
             )
 
     async def call_method(self, data):
@@ -240,7 +257,7 @@ class JsonMethodConsumer(JsonConsumer):
         except Exception as e:
             await self.handle_error(
                 error=e,
-                __response_client_data=(data or {}).get("kwargs", {}).get("__response_client_data")
+                __echo_client_data=(data or {}).get("kwargs", {}).get("__echo_client_data")
             )
 
     async def call_event(self, event):
@@ -250,41 +267,3 @@ class JsonMethodConsumer(JsonConsumer):
         await self.event_method_list.__call_method__(
             event.get('event_name'), event.get('kwargs', {}), event.get('args', [])
         )
-
-
-class AuthConsumer(JsonMethodConsumer):
-    """
-    Base consumer class that provides user authorization,
-    separated API methods events interfaces
-    """
-    authenticated: bool = False
-
-    user: User = None
-    user_group_prefix: str = '__user'
-    user_group_name: str = None
-
-    def init_event_method_list(self):
-        class AuthClass(self.event_method_list_class, UserReturnMethodListMixin):
-            pass
-        self.event_method_list = AuthClass(self)
-
-    async def send_group_event(self, group_name, event_name, kwargs={}, args=[]):
-        """Adds initiator id to the kwargs"""
-        kwargs['__initiator_id'] = str(self.user.id) if self.authenticated else None
-        return await super(AuthConsumer, self).send_group_event(
-            group_name, event_name, kwargs, args
-        )
-
-    async def send_to_user(self, user_id, event_name, kwargs={}, args=[]):
-        """Shorthand for send_group_event with user group"""
-        return await self.send_group_event(self.user_group_prefix + str(user_id), event_name, kwargs, args)
-
-    async def user_return(self, kwargs={}, args=[]):
-        """Sends the data to all points where the authenticated user is logged from"""
-        await self.send_group_event(self.user_group_name, 'user_return__', kwargs, args)
-
-    async def authenticate(self, user):
-        self.user = user
-        self.user_group_name = self.user_group_prefix + str(user.id)
-        self.authenticated = True
-        await self.attach_group(self.user_group_name)

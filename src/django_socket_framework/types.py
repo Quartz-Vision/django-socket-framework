@@ -5,28 +5,28 @@ class BaseEventType(str, Enum):
     pass
 
 
-class EventType(BaseEventType):
+class ClientEventType(BaseEventType):
     ERROR = "error"
 
 
-class Response(dict):
+class ClientEvent(dict):
     """
-    Response dict class with dedicated constructor
-    __response_client_data - data, going from the client back 
+    ClientEvent dict class with dedicated constructor
+    __echo_client_data - data, going from the client back 
         to itself in raw format. For example, front-end ids
     """
     def __init__(
         self,
-        __response_type: BaseEventType,
-        __response_client_data=None,
+        __event_type: BaseEventType,
+        __echo_client_data=None,
         *args,
         **kwargs
     ):
-        super(Response, self).__init__({
-            'type': __response_type,
+        super(ClientEvent, self).__init__({
+            'type': __event_type,
             'data': {
                 **kwargs,
-                '__response_client_data': __response_client_data
+                '__echo_client_data': __echo_client_data
             }
         })
 
@@ -38,8 +38,7 @@ class BaseErrorType(str, Enum):
 class ErrorType(BaseErrorType):
     SYSTEM_ERROR = "system_error"
     ACCESS_ERROR = "access_error"
-    AUTHORIZATION_ERROR = "authorization_error"
-    TYPE_ERROR = "field_error"
+    TYPE_ERROR = "type_error"
 
 
 class BaseConsumerError(RuntimeError):
@@ -68,8 +67,3 @@ class ConsumerSystemError(BaseConsumerError):
 class ConsumerAccessError(BaseConsumerError):
     def __init__(self, *args, **kwargs):
         super(ConsumerAccessError, self).__init__(*args, **kwargs, error_type=ErrorType.ACCESS_ERROR)
-
-
-class ConsumerAuthorizationError(BaseConsumerError):
-    def __init__(self, *args, **kwargs):
-        super(ConsumerAuthorizationError, self).__init__(*args, **kwargs, error_type=ErrorType.AUTHORIZATION_ERROR)

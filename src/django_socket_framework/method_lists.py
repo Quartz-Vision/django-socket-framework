@@ -1,4 +1,4 @@
-from .types import EventType, ErrorType, BaseConsumerError
+from django_socket_framework.types import ErrorType, BaseConsumerError
 
 
 class BaseConsumerMethodList:
@@ -22,13 +22,3 @@ class BaseConsumerMethodList:
                 ErrorType.ACCESS_ERROR
             )
         return await getattr(self, method_name)(*args, **kwargs)
-
-
-class UserReturnMethodListMixin(BaseConsumerMethodList):
-    async def user_return__(self, data=None, *args, **kwargs):
-        """Just send given data to the user"""
-        try:
-            await self.consumer.send_json(data)
-        except KeyError as e:
-            await self.consumer.send_error("no data for the user_return")
-

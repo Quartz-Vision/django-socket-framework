@@ -3,6 +3,8 @@ import mimetypes
 
 from django.core.files.base import ContentFile
 
+__all__ = ['base64_to_django_file']
+
 
 def base64_to_django_file(data, name=None):
     file_mime, file_data = data.split(';base64,')
